@@ -99,6 +99,14 @@ where
     type Receipt = R::Receipt;
     type Evm = E;
 
+    fn receipt_len(&self) -> usize {
+        self.receipts.len()
+    }
+
+    fn set_gas_used(&mut self, gas_used: u64) {
+        self.gas_used = gas_used;
+    }
+
     fn apply_pre_execution_changes(&mut self) -> Result<(), BlockExecutionError> {
         // Set state clear flag if the block is after the Spurious Dragon hardfork.
         let state_clear_flag =
@@ -216,6 +224,7 @@ where
 
     fn finish(
         mut self,
+        _is_last_tx: bool,
     ) -> Result<(Self::Evm, BlockExecutionResult<R::Receipt>), BlockExecutionError> {
         let balance_increments =
             post_block_balance_increments::<Header>(&self.spec, self.evm.block(), &[], None);

@@ -125,6 +125,18 @@ pub trait BlockExecutor {
     /// into the EVM's transaction format for execution.
     type Evm: Evm<Tx: FromRecoveredTx<Self::Transaction> + FromTxWithEncoded<Self::Transaction>>;
 
+    /// Returns the receipt length
+    fn receipt_len(&self) -> usize;
+
+    /// Returns the cumulative gas cost
+    fn gas_used(&self) -> u64 {
+        0
+    }
+
+    /// Sets the gas cost
+    /// It's used for gas cost instantiation of one sub-block
+    fn set_gas_used(&mut self, gas_used: u64);
+
     /// Applies any necessary changes before executing the block's transactions.
     fn apply_pre_execution_changes(&mut self) -> Result<(), BlockExecutionError>;
 
@@ -201,16 +213,20 @@ pub trait BlockExecutor {
     /// and returns the underlying EVM along with execution result.
     fn finish(
         self,
+        // Identifies if it's the last transaction (in sub-block)
+        is_last_tx: bool,
     ) -> Result<(Self::Evm, BlockExecutionResult<Self::Receipt>), BlockExecutionError>;
 
     /// A helper to invoke [`BlockExecutor::finish`] returning only the [`BlockExecutionResult`].
     fn apply_post_execution_changes(
         self,
+        // Identifies if it's the last transaction (in sub-block)
+        is_last_tx: bool,
     ) -> Result<BlockExecutionResult<Self::Receipt>, BlockExecutionError>
     where
         Self: Sized,
     {
-        self.finish().map(|(_, result)| result)
+        self.finish(is_last_tx).map(|(_, result)| result)
     }
 
     /// Sets a hook to be called after each state change during execution.
@@ -266,7 +282,7 @@ pub trait BlockExecutor {
             self.execute_transaction(tx)?;
         }
 
-        self.apply_post_execution_changes()
+        self.apply_post_execution_changes(true)
     }
 }
 
