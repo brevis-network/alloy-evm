@@ -171,8 +171,9 @@ where
         // Identifies if it's the last transaction (in sub-block)
         is_last_tx: bool,
     ) -> Result<(Self::Evm, BlockExecutionResult<R::Receipt>), BlockExecutionError> {
-        let requests = if is_last_tx
-            && self.spec.is_prague_active_at_timestamp(self.evm.block().timestamp.saturating_to())
+        let requests = if self
+            .spec
+            .is_prague_active_at_timestamp(self.evm.block().timestamp.saturating_to())
         {
             // Collect all EIP-6110 deposits
             let deposit_requests =
@@ -184,7 +185,9 @@ where
                 requests.push_request_with_type(eip6110::DEPOSIT_REQUEST_TYPE, deposit_requests);
             }
 
-            requests.extend(self.system_caller.apply_post_execution_changes(&mut self.evm)?);
+            requests.extend(
+                self.system_caller.apply_post_execution_changes(is_last_tx, &mut self.evm)?,
+            );
             requests
         } else {
             Requests::default()
