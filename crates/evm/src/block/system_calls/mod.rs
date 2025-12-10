@@ -64,18 +64,20 @@ where
     /// Apply post execution changes.
     pub fn apply_post_execution_changes(
         &mut self,
+        is_last_tx: bool,
         evm: &mut impl Evm<DB: DatabaseCommit>,
     ) -> Result<Requests, BlockExecutionError> {
         let mut requests = Requests::default();
 
         // Collect all EIP-7685 requests
-        let withdrawal_requests = self.apply_withdrawal_requests_contract_call(evm)?;
+        let withdrawal_requests = self.apply_withdrawal_requests_contract_call(is_last_tx, evm)?;
         if !withdrawal_requests.is_empty() {
             requests.push_request_with_type(WITHDRAWAL_REQUEST_TYPE, withdrawal_requests);
         }
 
         // Collect all EIP-7251 requests
-        let consolidation_requests = self.apply_consolidation_requests_contract_call(evm)?;
+        let consolidation_requests =
+            self.apply_consolidation_requests_contract_call(is_last_tx, evm)?;
         if !consolidation_requests.is_empty() {
             requests.push_request_with_type(CONSOLIDATION_REQUEST_TYPE, consolidation_requests);
         }
@@ -130,6 +132,7 @@ where
     /// Applies the post-block call to the EIP-7002 withdrawal request contract.
     pub fn apply_withdrawal_requests_contract_call(
         &mut self,
+        is_last_tx: bool,
         evm: &mut impl Evm<DB: DatabaseCommit>,
     ) -> Result<Bytes, BlockExecutionError> {
         let result_and_state = eip7002::transact_withdrawal_requests_contract_call(evm)?;
@@ -142,7 +145,10 @@ where
                 &result_and_state.state,
             );
         }
-        evm.db_mut().commit(result_and_state.state);
+
+        if is_last_tx {
+            evm.db_mut().commit(result_and_state.state);
+        }
 
         eip7002::post_commit(result_and_state.result)
     }
@@ -150,6 +156,7 @@ where
     /// Applies the post-block call to the EIP-7251 consolidation requests contract.
     pub fn apply_consolidation_requests_contract_call(
         &mut self,
+        is_last_tx: bool,
         evm: &mut impl Evm<DB: DatabaseCommit>,
     ) -> Result<Bytes, BlockExecutionError> {
         let result_and_state = eip7251::transact_consolidation_requests_contract_call(evm)?;
@@ -162,7 +169,10 @@ where
                 &result_and_state.state,
             );
         }
-        evm.db_mut().commit(result_and_state.state);
+
+        if is_last_tx {
+            evm.db_mut().commit(result_and_state.state);
+        }
 
         eip7251::post_commit(result_and_state.result)
     }
